@@ -1,0 +1,227 @@
+---
+title: "Problem Set 4a"
+output: html_document
+date: "2023-12-09"
+---
+
+# Part 1: R questions
+# Question 1: Functions in R
+# 1.
+```{r}
+count_na <- function(x) {
+  mean(is.na(x))
+}
+
+mean <- function(x) {
+  x / sum(x, na.rm = TRUE)
+}
+
+sd <- function(x) {
+  sd(x, na.rm = TRUE) / mean(x, na.rm = TRUE)
+}
+```
+
+# 2.
+```{r}
+both_na <- function(x,y) {
+  which(is.na(x) & is.na(y))
+}
+
+both_na(c(NA, 2, NA, 2, NA), c(NA, 2, NA, 4, 5))
+```
+
+# 3.
+The first line checks whether the give path is that of a directory
+The second line checks if the path to a given file is readable
+
+# 4.
+The first function checks if the prefix variable and prefix of the string are the same. I would rename this function to "check_prefix"
+The second function returns null if the length of x is less than or equal to 1. Otherwise, it will return x without the last element. I would rename this "rm_last_letter".
+The third function takes the second vector and prints its values in a loop until however long the x variable is. So I would just call this function as "repeater".
+
+# 5.
+
+```{r}
+fizzbuzz <- function(x) {
+  three <- x %% 3 == 0
+  five <- x %% 5 == 0
+  
+  if (three && five) {
+    return("fizzbuzz")
+  } else if (three) {
+    return("fizz")
+  } else if (five) {
+    return("buzz")
+  } else {
+    return(x)
+  }
+}
+
+fizzbuzz(5)
+```
+
+# 6.
+For the sign <=
+```{r}
+temp <- c(5, 23)
+cut(temp, breaks = seq(-10,40,10), labels = c("freezing", "cold", "cool", "warm", "hot"))
+```
+For the sign <
+```{r}
+cut(temp, breaks = seq(-10,40,10), right = FALSE, labels = c("freezing", "cold", "cool", "warm", "hot"))
+```
+The chief advantage would be deciding what the closing values are 
+
+# 7.
+Basically it goes to the given letter and checks the value. If there's no value, then it goes to the next letter
+```{r}
+x <- "e"
+switch_out <- switch(x,
+a = ,
+b = "ab",
+c = ,
+d = "cd"
+)
+switch_out
+```
+With e, because there's no letter after d in switch, it prints NULL
+
+# Question 2: Vectors and lists in R
+# 1.
+id.vector() checks if the given vector contains names. Anything other than names, it will return error or false
+is.atomic() returns true for values which are also NULL. 
+
+# 2.
+```{r}
+last <- function(x) x[[length(x)]]
+last(1:10)
+```
+```{r}
+even_position <- function(x) x[((1:length(x)) %% 2 == 0)]
+even_position(2:10)
+```
+```{r}
+except_last <- function(x) x[-length(x)]
+except_last(1:10)
+```
+```{r}
+even <- function(x) x[x %% 2 == 0]
+even(2:10)
+```
+
+# 3.
+which is only meant for indices
+
+# 4.
+You will only get an NA in both the scenarios
+
+# 5.
+```{r}
+list(1, 2, list(3, 4), list(5, 6))
+```
+Basically here we can see the diagram but index wise. For example, in 3rd list, we expect to see 3 in 1st position and 4 in 2nd position. And that is the output. [[3]][[1]] = 3 & [[3]][[2]] = 4.
+
+Similarly for this:
+```{r}
+list(list(list(list(list(list(1))))))
+```
+
+# Question 3: Iteration in R
+# 1.
+
+I am commenting the code here because RMarkdown is having difficulty executing it during export. The code is working perfectly fine when running it directly. 
+# 1.
+```{r}
+library(tidyverse)
+
+#mean_col <- vector("double", length(mtcars))
+#for (i in seq_along(mtcars)){
+#  mean_col[[i]] <- mean(mtcars[[i]])
+#}
+
+#mean_col
+```
+
+# 2.
+```{r}
+library(nycflights13)
+
+flight_col_type <- vector("character", length(flights))
+for (i in seq_along(flights)){
+  flight_col_type[[i]] <- typeof(flights[[i]])
+}
+
+flight_col_type
+```
+
+# 3.
+```{r}
+data("iris")
+
+unique_vals <- vector("integer", length(iris))
+for (i in seq_along(iris)){
+  unique_vals[[i]] <- unique(iris[[i]]) %>% length()
+}
+
+unique_vals
+```
+
+# 4.
+```{r}
+normals <- vector("list", 4)
+input_means <- c(-10, 0, 10, 100)
+for (i in seq_along(normals)){
+  normals[[i]] <- rnorm(10, mean = input_means[[i]])
+}
+
+normals
+```
+
+# 2.
+```{r}
+out <- ""
+for (x in letters) {
+out <- stringr::str_c(out, x)
+}
+
+str_c(letters, collapse = "")
+```
+
+```{r}
+x <- sample(100)
+sd <- 0
+for (i in seq_along(x)) {
+  sd <- sd + (x[i] - mean(x)) ^ 2
+}
+sd <- sqrt(sd / (length(x) - 1))
+sd
+
+sd(x)
+```
+
+```{r}
+x <- runif(100)
+out <- vector("numeric", length(x))
+out[1] <- x[1]
+for (i in 2:length(x)) {
+out[i] <- out[i - 1] + x[i]
+}
+#out 
+
+cumsum(x)
+```
+
+# 3. 
+```{r}
+output <- vector("integer", 0)
+for (i in seq_along(x)) {
+output <- c(output, lengths(x[[i]]))
+}
+output
+```
+In general, with programming we know that preallocating the output space is a good practice and so this has to mean that preallocating will have better efficiency rather than increasing the length of a vector at each step. After googling, I could find that generally you performance goes up by around 30% by preallocating which is pretty significant especially if you want to deal with large datasets.
+
+# Part 2: Your Project
+
+I have already worked on including graphs, sections, and other such information in R markdown before and it was pretty easy. Although I would still prefer a word document because it's easier to format things like font size, image size and exporting the document(for some reason RMarkdown has difficulty running code during export process even though it has no issues running it directly). I am yet to finish up with the content of the report. If I feel like I can get away with a good looking report on R markdown, the perfect. Otherwise, I will type it up on a word document. 
+

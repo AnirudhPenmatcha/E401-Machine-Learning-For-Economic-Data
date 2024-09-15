@@ -1,0 +1,373 @@
+---
+title: "Problem Set 3a"
+output: pdf_document
+date: "2023-12-08"
+---
+
+# Data import and tidying
+# 1.
+
+```{r}
+library("tidyverse")
+
+mtcars
+```
+
+We can check is an object is a tibble by using the function "is_tibble()"
+```{r}
+is_tibble(mtcars)
+```
+
+# 2.
+```{r}
+df <- data.frame(abc = 1, xyz = "a")
+df$x
+df[, "xyz"]
+df[, c("abc", "xyz")]
+```
+```{r}
+table <- as_tibble(df)
+table$x
+```
+
+```{r}
+table[, "xyz"]
+```
+```{r}
+table[, c("abc", "xyz")]
+```
+R has an interesting feature which is match the column based on what the first few letters are. Which is why df$x is shown as df$xyz. Although helpful, not the safest if you happen to be dealing with something important.
+
+Generally, if we use "[" we get a vector returned if it's only column. If there's more than one column, then it will return a dataframe. So keeping this in mind is important.
+
+# Data import
+# 1.
+I would use the read_delim() function with the argument that I'm interested to separate the words 
+with: read_delim(file_name, delim = "|")
+
+# 2. 
+The most important argument for the function read_fwf() would be col_positions
+
+# 3.
+read_csv(file.csv, ",", quote = "'")
+
+# Parsing vectors
+# 1.
+```{r}
+# Commenting out to export the document but it does throw an error
+# locale(decimal_mark = ".", grouping_mark = ".")
+```
+If decimal and grouping marks are set to same, then as we can see it will throw an error
+If decimal mark is set to the comma, then grouping mark will be set to the period
+```{r}
+locale(decimal_mark = ",")
+```
+But if grouping is set to a period, then decimal mark is set to a comma
+```{r}
+locale(grouping_mark = ".")
+```
+# 2.
+Most common encodings in Europe are UTF-8 and ASCII. In Asia ISO and Windows standards are used. There are more such as JIS X 0208, GB 2312, and EUC-KR.
+
+# Spreading and gathering
+# 1. 
+```{r}
+stocks <- tibble(
+year = c(2015, 2015, 2016, 2016),
+half = c(1,2,1,2),
+return = c(1.88, 0.59, 0.92, 0.17)
+)
+stocks %>%
+spread(year, return) %>%
+gather("year", "return", `2015`:`2016`)
+```
+# 2.
+The key variable is the column names, and is moved as a character column. So it doesn't make sense to treat column names as anything else. We could fix this with "convert = TRUE".
+
+# 3.
+Gather cannot find the columns values
+
+# 4.
+There is a redundant entry with Phillip Woods' age. We can fix it by using a separate column id that identify one of the ages as a unique entry.
+
+# 5.
+It's best to gather here based on gender
+
+-> preg %>% gather(gender, values, -pregnant)
+
+# Separating and uniting
+# 1.
+x has vectors with 3 and 4 characters but we specify 3 columns. We can give a fourth column like below:
+```{r}
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>% 
+  separate(x, c("one", "two", "three", "four"))
+
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>% 
+  separate(x, c("one", "two", "three", "four"), fill = "right")
+```
+
+# 2.
+unite and separate have columns and create new ones. remove allows to get rid of original columns that we unite or separate on.
+
+# Missing Values
+# 1.
+In spread(), the NA values will be replaced with fill value. But in complete(), NAs can be replaced by different values. We can provide the fill argument with values to replace NAs with.
+
+# 2.
+The NA values are basically replaced by the next or previous non NA value. 
+
+# Question 2: Relational data and data types
+# Relational data
+# 1. 
+```{r}
+library("tidyverse")
+library("nycflights13")
+library("viridis")
+```
+This would require the variables latitude and longitude of the origin and destination airports of each flight. As for tables, we would require the flights and airports tables.
+
+```{r}
+flights_latlon <- flights %>%
+  inner_join(select(airports, origin = faa, origin_lat = lat, origin_lon = lon),
+    by = "origin"
+  ) %>%
+  inner_join(select(airports, dest = faa, dest_lat = lat, dest_lon = lon),
+    by = "dest"
+  )
+```
+
+```{r}
+flights_latlon %>%
+  slice(1:100) %>%
+  ggplot(aes(
+    x = origin_lon, xend = dest_lon,
+    y = origin_lat, yend = dest_lat
+  )) +
+  borders("state") +
+  geom_segment(arrow = arrow(length = unit(0.1, "cm"))) +
+  coord_quickmap() +
+  labs(y = "Latitude", x = "Longitude")
+```
+# 2.
+The airports$faa is a foreign key in weather$origin. The relationship in pictorial representation should look like a direct connection from the faa column of airports to the origin column in weather column.
+
+# 3.
+First of all, having weather for all airports would provide the weather for the destination of each flight. The additional relation it would define with flights would be that this would prove the weather at the destination airport at the time of the flight take off.
+
+# 4.
+```{r}
+special_days <- tribble( ~year, ~month, ~day, ~holiday,
+  2013, 01, 01, "New Years Day",
+  2013, 11, 29, "Thanksgiving Day",
+  2013, 12, 25, "Christmas Day"
+)
+special_days
+```
+# Keys
+# 1.
+```{r}
+flights %>%
+  arrange(year, month, day, sched_dep_time, carrier, flight) %>%
+  mutate(flight_id = row_number()) %>%
+  glimpse()
+```
+# Mutating joins
+# 1.
+```{r}
+airports %>%
+  semi_join(flights, c("faa" = "dest")) %>%
+  ggplot(aes(lon, lat)) +
+  borders("state") +
+  geom_point() +
+  coord_quickmap()
+```
+
+```{r}
+avg_dest_delays <-
+  flights %>%
+  group_by(dest) %>%
+  # arrival delay NA's are cancelled flights
+  summarise(delay = mean(arr_delay, na.rm = TRUE)) %>%
+  inner_join(airports, by = c(dest = "faa"))
+
+avg_dest_delays %>%
+  ggplot(aes(lon, lat, colour = delay)) +
+  borders("state") +
+  geom_point() +
+  coord_quickmap()
+```
+
+# 2.
+```{r}
+airport_locations <- airports %>%
+  select(faa, lat, lon)
+
+flights %>%
+  select(year:day, hour, origin, dest) %>%
+  left_join(
+    airport_locations,
+    by = c("origin" = "faa")
+  ) %>%
+  left_join(
+    airport_locations,
+    by = c("dest" = "faa")
+  )
+```
+
+# 3.
+We could try to find out by plotting a graph between delay and age of planes
+```{r}
+plane_cohorts <- inner_join(flights,
+  select(planes, tailnum, plane_year = year),
+  by = "tailnum"
+) %>%
+  mutate(age = year - plane_year) %>%
+  filter(!is.na(age)) %>%
+  mutate(age = if_else(age > 25, 25L, age)) %>%
+  group_by(age) %>%
+  summarise(
+    dep_delay_mean = mean(dep_delay, na.rm = TRUE),
+    dep_delay_sd = sd(dep_delay, na.rm = TRUE),
+    arr_delay_mean = mean(arr_delay, na.rm = TRUE),
+    arr_delay_sd = sd(arr_delay, na.rm = TRUE),
+    n_arr_delay = sum(!is.na(arr_delay)),
+    n_dep_delay = sum(!is.na(dep_delay))
+  )
+
+ggplot(plane_cohorts, aes(x = age, y = arr_delay_mean)) +
+  geom_point() +
+  scale_x_continuous("Age of Plane (years)", breaks = seq(0, 30, by = 10)) +
+  scale_y_continuous("Arrival Delay (minutes)")
+```
+
+It looks like until 10 years, the delay is increasing and after that it's decreasing.
+
+# 4.
+```{r}
+flights %>%
+  filter(year == 2013, month == 6, day == 13) %>%
+  group_by(dest) %>%
+  summarise(delay = mean(arr_delay, na.rm = TRUE)) %>%
+  inner_join(airports, by = c("dest" = "faa")) %>%
+  ggplot(aes(y = lat, x = lon, size = delay, colour = delay)) +
+  borders("state") +
+  geom_point() +
+  coord_quickmap() +
+  scale_colour_viridis()
+```
+
+According to Google, it looks like there were a lot of storms especially in the southeast and midwest. 
+
+# Filtering Joins
+# 1.
+```{r}
+planes_gte100 <- flights %>%
+  filter(!is.na(tailnum)) %>%
+  group_by(tailnum) %>%
+  count() %>%
+  filter(n >= 100)
+planes_gte100
+```
+
+# 2.
+```{r}
+# Output being displayed when executing on R studio but not when knitting document for some odd reason
+
+#weather_most_delayed <- semi_join(weather, day, 
+#                                  by = c("origin", "year",
+#                                         "month", "day", "hour"))
+#weather_most_delayed
+```
+It looks like a lot of these have an average wind speed of about 10 and pressure is mostly around 1000.
+
+# 3.
+```{r}
+planes_carriers <-
+  flights %>%
+  filter(!is.na(tailnum)) %>%
+  distinct(tailnum, carrier)
+
+planes_carriers %>%
+  count(tailnum) %>%
+  filter(n > 1) %>%
+  nrow()
+
+carrier_transfer_tbl <- planes_carriers %>%
+  group_by(tailnum) %>%
+  filter(n() > 1) %>%
+  left_join(airlines, by = "carrier") %>%
+  arrange(tailnum, carrier)
+
+carrier_transfer_tbl
+```
+
+We reject this hypothesis because we Endeavor Air and ExpressJet use same plane. That's enough to reject this hypothesis.
+
+# Strings
+# 1.
+```{r}
+paste("abc", "xyz")
+paste0("abc", "xyz")
+```
+paste separates strings with a space and paste0 doesn't
+
+# 2.
+sep is used to add a string in between arguments. And collapse is used to separate elements from a character  vector into a character vector of length one.
+
+# 3.
+It wraps text to fit within a certain width specified.
+
+# 4.
+str_trim() removes the whitespace from a string
+
+# Part 2: Your Project
+# Question 3
+
+*Project Proposal: Investigating the Impact of Abortion Rates on Crime Rates*
+
+Research Question: 
+Our objective is to assess the robustness of Donohue and Levitt's (2001) study on the impact of legalized abortion on crime rates. Specifically, we aim to answer whether higher abortion rates lead to lower crime rates. We will replicate the original study, explore additional variables, and propose a model that provides a statistically reliable estimate of the causal effect of abortion on crime, considering potential confounders.
+
+Data and Empirical Methods:
+1. *Descriptive Statistics and Visualization:*
+   - Obtain descriptive statistics for abortion rates, crime rates, and relevant variables.
+   - Visualize trends over time, addressing concerns about data quality for Alaska, DC, and Hawaii.
+   - Restrict the sample to 1985-1997.
+
+2. *Replication of Donohue and Levitt (2001):*
+   - Regress murder rates on abortion rates (a_murd), control variables, state fixed effects, and a linear time trend using OLS.
+   - Assess significance and draw conclusions on the impact of abortion rates on murder rates.
+
+3. *Additional Variables:*
+   - Add variables suggested by the politician to the regression model from Question 2.
+   - Evaluate changes in estimation results.
+
+4. *LASSO Model:*
+   - Apply LASSO to the regression model from Question 2 to handle a large set of control variables.
+   - Analyze LASSO estimates and address concerns.
+
+5. *Statistically Reliable Causal Effect Model:*
+   - Propose a model that controls for confounders and provides a statistically reliable estimate of the causal effect of abortion on crime.
+   - Walk through conceptual steps and code.
+   - Compare results with the original Donohue and Levitt paper.
+
+6. *Replication of Conservative Representatives' Analysis:*
+   - Replace abortion rates with cellphone penetration rates in the model from Question 2.
+   - Assess the conservative representatives' argument and provide counterarguments based on findings.
+
+Data Management:
+   - Systematically handle data read-in, ensuring code takes original data files as input.
+   - Organize data sources using relational database concepts.
+   - Implement systematic cleaning to check for errors, missing values, etc.
+   - Address variable type correctness.
+
+Preliminary Findings:
+   - Preliminary analysis indicates a need to address concerns about data quality and potential changes in estimation results with additional variables.
+   - Replication of the conservative representatives' analysis is essential to assess the plausibility of their argument.
+
+Code Submission:
+   - Provide organized code for data handling, combining sources, cleaning, and regression models.
+
+Conclusion:
+Our research will contribute to the assessment of the original study's robustness and provide evidence for legislative initiatives related to abortion. The systematic approach to data management and empirical methods will ensure transparency and reliability in our findings.
+

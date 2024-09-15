@@ -1,0 +1,233 @@
+---
+title: "problem set 2a"
+output: html_document
+date: "2023-11-28"
+---
+
+```{r}
+library("nycflights13")
+library("tidyverse")
+```
+
+# Filtering
+# Q1.
+
+We can find the flights that don't have a departure time by checking if it's a na value
+```{r}
+filter(flights, is.na(dep_time))
+```
+We can see here that arrival time is also missing. These could mean that these flights were cancelled
+
+```{r}
+# With the help of summary we can see the number of na values in dep time, dep delay, arr time, arr delay, air time
+summary(flights)
+```
+
+# Q2.
+```{r}
+NA ^ 0
+```
+Because it's equal to 1
+
+```{r}
+NA | TRUE
+```
+This is an OR statement between a na and true. So it will always result in True.
+
+```{r}
+NA & FALSE
+```
+This will always be false because no matter what there is in place of the "NA", because of the and operator, the resulting answer will always be false.
+
+If we have to generalize this, lets look at all the other possibilities:
+```{r}
+NA | FALSE
+NA & TRUE
+NA * 0
+```
+The value for all of these will be NA because the first two can be either true or false and the third one is always NA. So finding a general is most likely not possible
+
+
+# Arrange Data
+# Q1.
+
+```{r}
+arrange(flights, desc(is.na(dep_time)), dep_time)
+```
+
+The flights are now sorted such that all missing values are on the start
+
+# Q2.
+
+We can arrange the longest flights using the distance values by sorting them in descending order
+```{r}
+arrange(flights, desc(distance))
+```
+Similarly for shortest
+```{r}
+arrange(flights, distance)
+```
+
+# Select Columns
+# Q1.
+
+It looks like the select call will ignore the duplicates without any warnings
+```{r}
+select(flights, year, month, month, month)
+```
+
+# Create new variables
+# Q1.
+
+I expect that they should be the same
+
+```{r}
+flights$air_time
+```
+```{r}
+flights$arr_time - flights$dep_time
+```
+
+It looks like there they aren't they same when we print them. Perhaps delays are also taken into account on the arrival time. Hence, it would make sense to do the same but by subtracting the departure delay and the arrival delay.
+
+# Q2.
+
+The departure delay will most likely be the difference between scheduled departure time and actual departure time. 
+
+# Q3.
+
+```{r}
+1:3 + 1:10
+```
+This is because 10 is not a multiple of 3. Had the shorted object been just 1 or 1:5, this would not have thrown a warning
+
+# Grouped Summaries
+
+# Q1. 
+
+```{r}
+cancelled_per_day <- 
+  flights %>%
+  mutate(cancelled = (is.na(arr_delay) | is.na(dep_delay))) %>%
+  group_by(year, month, day) %>%
+  summarise(
+    cancelled_num = sum(cancelled),
+    flights_num = n(),
+  )
+
+ggplot(cancelled_per_day) +
+  geom_point(aes(x = flights_num, y = cancelled_num)) 
+```
+
+There is a possibility for a patter here that as the number of flights are increasing the number of cancelled flights are also going up.
+
+# Q2.
+
+```{r}
+flights %>%
+  group_by(carrier) %>%
+  summarise(arr_delay = mean(arr_delay, na.rm = TRUE)) %>%
+  arrange(desc(arr_delay))
+```
+
+It looks like flights F9 have the highest delay. Let's find out which airlines this belongs to
+
+```{r}
+filter(airlines, carrier == "F9")
+```
+This belongs to the Frontier Airlines
+
+# Question 2: Exploratory Data Analysis
+# Typical and atypical values
+# Q1. 
+
+```{r}
+summary(select(diamonds, x, y, z))
+```
+x,y,z have mean and median that are almost the same. Which is a rare thing to see. 
+It also looks like x and y are larger than z. 
+
+# Q2. 
+
+```{r}
+ggplot(filter(diamonds, price < 2500), aes(x = price)) +
+  geom_histogram(binwidth = 10, center = 0)
+```
+Well the data looks really spiky. And the next thing that stands out is that there is a gap around 1500 for some reason.
+And the distribution looks right skewed. 
+
+```{r}
+ggplot(filter(diamonds), aes(x = price)) +
+  geom_histogram(binwidth = 100, center = 0)
+```
+
+```{r}
+ggplot(filter(diamonds), aes(x = price)) +
+  geom_histogram(binwidth = 50, center = 0)
+```
+
+# Q3.
+
+```{r}
+diamonds %>%
+  filter(carat >= 0.99, carat <= 1) %>%
+  count(carat)
+```
+23 Diamonds are 0.99 carat
+1558 Diamonds are 1 carat
+
+It might be because of tax on the price of Diamonds with carat 1.0 and above. And so they carefully measure to get it as close as possible to 1 and keep it within the lower tax bracket. 
+
+# Missing Values
+# Q1. 
+
+In R, missing values are usually removed automatically with a warning message
+```{r}
+diamonds2 <- diamonds %>%
+  mutate(y = ifelse(y < 3 | y > 20, NA, y))
+
+ggplot(diamonds2, aes(x = y)) +
+  geom_histogram()
+```
+
+But with bar chart, missing values are treated as another category
+
+```{r}
+diamonds %>%
+  mutate(cut = if_else(runif(n()) < 0.1, NA_character_, as.character(cut))) %>%
+  ggplot() +
+  geom_bar(mapping = aes(x = cut))
+```
+
+# Q2.
+
+```{r}
+mean(c(0, 1, 2, NA), na.rm = TRUE)
+sum(c(0, 1, 2, NA), na.rm = TRUE)
+```
+
+The ".rm" stands for remove. So the function will make sure to remove all the na values and then calculate their mean and sum.
+
+# Covariation
+
+# Q1. 
+
+```{r}
+ggplot(diamonds, aes(x = cut_number(price, 10), y = carat)) +
+  geom_boxplot() +
+  coord_flip() +
+  xlab("Price")
+```
+
+# Q2.
+
+It looks like bigger diamonds have more range. I am not entirely sure how diamonds are priced but perhaps that are a lot 
+of varieties in big diamonds when it comes to their shape. And because there is little room to work with smaller diamonds, they are more or less priced the same. 
+
+
+# Part 2: Your Project
+
+# Question 3
+
+We have looked st more data sets but haven't been able to finalize on one yet. Hopefully by November end we should have a
+Dataset to work with. 

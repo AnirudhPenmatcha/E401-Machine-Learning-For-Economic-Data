@@ -1,0 +1,150 @@
+---
+title: "Problem Set 2b"
+output: pdf_document
+date: "2023-11-29"
+---
+
+# Question 1: Load, prepare, and summarize the data.
+
+```{r}
+library(glmnet)
+library(corrplot)
+library(hdm)
+# This command loads data contained in a R-package.
+data(cps2012)
+?cps2012
+# Construct a regressor matrix for use in the different models.
+x <- model.matrix( ~ -1 + female + widowed + divorced + separated + nevermarried +
+hsd08+hsd911+ hsg+cg+ad+mw+so+we+exp1+exp2+exp3, data=cps2012)
+dim(x)
+```
+```{r}
+y <- cps2012$lnw
+```
+
+# Question 2: Apply Ridge Regression with CV
+
+```{r}
+ridge_fit <- rlasso(x, y, method = "ridge")
+# 10 fold cross validation
+cv_fit <- cv.glmnet(x, y, alpha = 0, nfolds = 10)
+# Plot it
+plot(cv_fit$lambda, cv_fit$cvm, type = "l", xlab = "Lambda (log scale)",
+     ylab = "CV Mean Squared Error", main = "10-fold Cross-Validation for Ridge Regression")
+```
+
+```{r}
+optimal_lambda <- cv_fit$lambda.min
+```
+
+```{r}
+ridge_optimal_fit <- rlasso(x, y, method = "ridge", lambda = optimal_lambda)
+num_variables_used <- sum(ridge_optimal_fit$coef != 0)
+cat("Number of variables used in Ridge regression fit:", num_variables_used, "\n")
+```
+
+The reason the test MSE for a Ridge regression is often smaller than for OLS when lambda is not zero is due to various factors such as shrinkage of coefficients, bias-variance tradeoff, multicollinearity reduction, and improved stability. 
+
+```{r}
+cat("The optimal value for lambda in our Ridge Regression problem is: ", optimal_lambda)
+```
+
+Whether unrestricted OLS is optimal here or Ridge Regression is optimal here depends on various factors such as the presence of multicollinearity and the relationship between predictors and the response variable. So based on that and our problem we need to decide which is better. 
+
+# Question 3: Apply Lasso Regression with CV
+
+```{r}
+cv_fit_lasso <- cv.glmnet(x, y, alpha = 1, nfolds = 10)
+# 10 fold cross validation
+cv_fit <- cv.glmnet(x, y, alpha = 0, nfolds = 10)
+# Plot of the MSE for all the lambda values used
+plot(cv_fit$lambda, cv_fit$cvm, type = "l", xlab = "Lambda (log scale)",
+     ylab = "CV Mean Squared Error", main = "10-fold Cross-Validation for Lasso Regression")
+```
+
+```{r}
+optimal_lambda_lasso <- cv_fit_lasso$lambda.min
+cat("Optimal Lambda selected by cross-validation (Lasso):", optimal_lambda_lasso, "\n")
+```
+
+```{r}
+lasso_model_final <- glmnet(x, y, alpha = 1, lambda = optimal_lambda_lasso)
+num_variables_used_lasso <- sum(coef(lasso_model_final) != 0)
+cat("Number of variables used in the optimal Lasso fit:", num_variables_used_lasso, "\n")
+```
+
+```{r}
+coefficients_lasso <- coef(lasso_model_final)
+cat("Coefficients of the optimal Lasso model:\n")
+print(coefficients_lasso)
+```
+
+Judging by the two graphs, there doesn't seem to be too much of a difference between the two models. But I would still choose Lasso because it essentially removes the variables that are not really contributing to the prediction. This way we are keeping the variables that are mostly likely significant to the problem. 
+
+It seems to be that gender is an important variable in that it has an inversely proportional relationship with the dependent variable due it being a negative number. 
+
+# Question 4: Using a more flexible model 
+
+```{r}
+X <- model.matrix( ~ -1 +female+
+female:(widowed+divorced+separated+nevermarried+
+hsd08+hsd911+ hsg+cg+ad+mw+so+we+exp1+exp2+exp3) +
++ (widowed + divorced + separated + nevermarried +
+hsd08+hsd911+ hsg+cg+ad+mw+so+we+exp1+exp2+exp3)^2,
+data=cps2012)
+dim(X)
+```
+
+```{r}
+# Safety check: Exclude all constant variables.
+X <- X[,which(apply(X, 2, var)!=0)]
+dim(X)
+```
+
+```{r}
+index.gender <- grep("female", colnames(X))
+```
+
+
+# Ridge
+```{r}
+ridge_fit <- rlasso(X, y, method = "ridge")
+# 10 fold cross validation
+cv_fit <- cv.glmnet(X, y, alpha = 0, nfolds = 10)
+# Plot it
+plot(cv_fit$lambda, cv_fit$cvm, type = "l", xlab = "Lambda (log scale)",
+     ylab = "CV Mean Squared Error", main = "10-fold Cross-Validation for Ridge Regression")
+optimal_lambda <- cv_fit$lambda.min
+ridge_optimal_fit <- rlasso(X, y, method = "ridge", lambda = optimal_lambda)
+num_variables_used <- sum(ridge_optimal_fit$coef != 0)
+cat("Number of variables used in Ridge regression fit:", num_variables_used, "\n")
+```
+
+# Lasso
+```{r}
+cv_fit_lasso <- cv.glmnet(X, y, alpha = 1, nfolds = 10)
+# 10 fold cross validation
+cv_fit <- cv.glmnet(X, y, alpha = 0, nfolds = 10)
+# Plot of the MSE for all the lambda values used
+plot(cv_fit$lambda, cv_fit$cvm, type = "l", xlab = "Lambda (log scale)",
+     ylab = "CV Mean Squared Error", main = "10-fold Cross-Validation for Lasso Regression")
+optimal_lambda_lasso <- cv_fit_lasso$lambda.min
+cat("Optimal Lambda selected by cross-validation (Lasso):", optimal_lambda_lasso, "\n")
+lasso_model_final <- glmnet(X, y, alpha = 1, lambda = optimal_lambda_lasso)
+num_variables_used_lasso <- sum(coef(lasso_model_final) != 0)
+cat("Number of variables used in the optimal Lasso fit:", num_variables_used_lasso, "\n")
+coefficients_lasso <- coef(lasso_model_final)
+cat("Coefficients of the optimal Lasso model:\n")
+print(coefficients_lasso)
+```
+
+# Question 5: What is the most preferred prediction model of all
+
+I would prefer Lasso still simply because of the fact that it removes variables that are not essential to the problem. As for whether the interaction between gender and education is important for predicting wages, I would say it is. Although most of the female and education indicators interaction terms are negative except the cg indicator because it's positive, they all share an inversely proportional relationship with our dependent variable. That is why Lasso also selects this variable. If it was not of any value, then Lasso should have removed it. 
+
+
+
+
+
+
+
